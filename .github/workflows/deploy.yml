@@ -1,0 +1,30 @@
+name: Deploy
+on:
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      - dev
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  dev:
+    uses: ./.github/workflows/dev.yml
+    secrets: inherit
+  deploy:
+    needs: dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@master
+        with:
+          name: artifact
+      - name: Deploy Response
+        uses: exuanbo/actions-deploy-gist@main
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: c60dfce3f7c0b3c8050d6e9306a23eb6
+          gist_description: "☁️ Cloudflare: 🇩 DNS β"
+          file_path: dist/event.bundle.js
