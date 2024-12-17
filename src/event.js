@@ -18,20 +18,24 @@ import { Cloudflare, database, setENV } from "./shared";
 		// Step 2
 		Settings.zone = await checkZoneInfo(Configs.Request, Settings.zone);
 		// Step 3 4 5
-		await Promise.allSettled(Settings.zone.dns_records.map(async dns_record => {
-			Console.info(`开始更新${dns_record.type}类型记录`);
-			//Step 3
-			const oldRecord = await checkRecordInfo(Configs.Request, Settings.zone, dns_record);
-			//Step 4
-			const newRecord = await checkRecordContent(dns_record, Settings.IPServer);
-			//Step 5
-			const Record = await setupRecord(Configs.Request, Settings.zone, oldRecord, newRecord);
-			Console.info(`${Record.name}上的${Record.type}记录${Record.content}更新完成`);
-		}));
-	} else throw new Error("验证失败")
+		await Promise.allSettled(
+			Settings.zone.dns_records.map(async dns_record => {
+				Console.info(`开始更新${dns_record.type}类型记录`);
+				//Step 3
+				const oldRecord = await checkRecordInfo(Configs.Request, Settings.zone, dns_record);
+				//Step 4
+				const newRecord = await checkRecordContent(dns_record, Settings.IPServer);
+				//Step 5
+				if (newRecord.content) {
+					const Record = await setupRecord(Configs.Request, Settings.zone, oldRecord, newRecord);
+					Console.info(`${Record.name}上的${Record.type}记录${Record.content}更新完成`);
+				} else Console.warn(`未能获取到${dns_record.type}类型记录, 跳过`);
+			}),
+		);
+	} else throw new Error("验证失败");
 })()
-	.catch((e) => Console.error(e))
-	.finally(() => done())
+	.catch(e => Console.error(e))
+	.finally(() => done());
 
 /***************** Function *****************/
 //Step 1
@@ -55,7 +59,7 @@ async function Verify(Request, Verify) {
 	if (result?.status === "active") return true;
 	else if (result?.suspended === false) return true;
 	else return false;
-};
+}
 
 //Step 2
 async function checkZoneInfo(Request, Zone) {
@@ -77,7 +81,7 @@ async function checkZoneInfo(Request, Zone) {
 	Console.log("✅ 查询区域信息", `ID:${newZone.id}`, `名称:${newZone.name}`, `状态:${newZone.status}`, `仅DNS服务:${newZone.paused}`, `类型:${newZone.type}`, `开发者模式:${newZone.development_mode}`, `名称服务器:${newZone.name_servers}`, `原始名称服务器:${newZone.original_name_servers}`);
 	const result = { ...Zone, ...newZone };
 	return result;
-};
+}
 
 //Step 3
 async function checkRecordContent(Record, IPServer) {
@@ -106,7 +110,7 @@ async function checkRecordContent(Record, IPServer) {
 	}
 	Console.log("✅ 检查记录内容", `${Record.type}类型内容: ${Record.content}`);
 	return Record;
-};
+}
 
 //Step 4
 async function checkRecordInfo(Request, Zone, Record) {
@@ -123,7 +127,7 @@ async function checkRecordInfo(Request, Zone, Record) {
 		done();
 	}
 	Console.log("✅ 记录查询结果", `ID:${oldRecord.id}`, `名称:${oldRecord.name}`, `类型:${oldRecord.type}`, `内容:${oldRecord.content}`, `代理状态:${oldRecord.proxied}`, `TTL:${oldRecord.ttl}`);
-	return oldRecord
+	return oldRecord;
 }
 
 //Step 5
@@ -141,7 +145,7 @@ async function setupRecord(Request, Zone, oldRecord, newRecord) {
 		Record = oldRecord;
 	}
 	Console.log("✅ 记录更新结果", `ID:${Record.id}`, `名称:${Record.name}`, `类型:${Record.type}`, `内容:${Record.content}`, `可代理:${Record.proxiable}`, `代理状态:${Record.proxied}`, `TTL:${Record.ttl}`, `已锁定:${Record.locked}`);
-	return Record
+	return Record;
 }
 
 // Function 1A
@@ -157,20 +161,29 @@ async function getExternalIP(type, server) {
 		case "my-ip.io":
 			request.url = `https://api${type}.my-ip.io/ip.json`;
 			break;
-	};
+		case "ipify.org":
+			request.url = `https://api${type}.ipify.org?format=json`;
+			break;
+	}
 	Console.debug("get External IP", `request: ${JSON.stringify(request)}`);
-	return await fetch(request).then(response => {
-		const body = JSON.parse(response.body)
-		Console.debug("get External IP", `body: ${JSON.stringify(body)}`);
-		switch (body?.success ?? body?.result) {
-			case true:
-				return body.IP ?? body.ip;
-			case false:
-				if (Array.isArray(body.errors)) body.errors.forEach(error => { notification(Function.name, `code: ${error.code}`, `message: ${error.message}`); })
-				if (Array.isArray(body.messages)) notification(Function.name, `code: ${body.code}`, `message: ${body.message}`);
-				break;
-			default:
-				return body?.result?.[0] ?? body?.result;
-		};
-	}, error => Console.error("get External IP", ` error = ${error || e}`));
-};
+	return await fetch(request).then(
+		response => {
+			const body = JSON.parse(response.body);
+			Console.debug("get External IP", `body: ${JSON.stringify(body)}`);
+			switch (body?.success ?? body?.result) {
+				case true:
+					return body.IP ?? body.ip;
+				case false:
+					if (Array.isArray(body.errors))
+						body.errors.forEach(error => {
+							notification(Function.name, `code: ${error.code}`, `message: ${error.message}`);
+						});
+					if (Array.isArray(body.messages)) notification(Function.name, `code: ${body.code}`, `message: ${body.message}`);
+					break;
+				default:
+					return body?.result?.[0] ?? body?.result ?? body.ip;
+			}
+		},
+		error => Console.error("get External IP", error || e),
+	);
+}
