@@ -1,1 +1,1 @@
-# ☁️ Auraflare: 🇩 DNS
+# ⛅ Auraflare: 🇩 DNS
