@@ -1,6 +1,6 @@
 {
 	"name": "@auraflare/dns",
-	"organizationName": "☁️ Auraflare",
+	"organizationName": "⛅ Auraflare",
 	"displayName": "☁️ Cloudflare: 🇩 DNS",
 	"description": "Cloudflare (D)DNS 管理与更新",
 	"homepage": "https://Auraflare.github.io/guide/DNS",
@@ -44,6 +44,6 @@
 		"typescript": "^5.5.4"
 	},
 	"dependencies": {
-		"@nsnanocat/util": "^1.7.6"
+		"@nsnanocat/util": "^1.8.9"
 	}
 }
